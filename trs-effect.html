@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRS Side Extractor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --border: #2a2a2a;
+    --accent: #c8ff00;
+    --accent2: #ff4d00;
+    --text: #e8e8e8;
+    --muted: #555;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(200,255,0,0.015) 2px, rgba(200,255,0,0.015) 4px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 580px;
+  }
+
+  header {
+    margin-bottom: 3rem;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 10vw, 5.5rem);
+    line-height: 0.9;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    text-shadow: 4px 4px 0 var(--accent2);
+  }
+
+  .subtitle {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 20px; height: 20px;
+    border-top: 2px solid var(--accent);
+    border-left: 2px solid var(--accent);
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 20px; height: 20px;
+    border-bottom: 2px solid var(--accent);
+    border-right: 2px solid var(--accent);
+  }
+
+  .drop-zone {
+    border: 1px dashed var(--border);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(200,255,0,0.03);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .drop-text {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .drop-text strong {
+    color: var(--accent);
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .file-name {
+    font-size: 0.7rem;
+    color: var(--accent);
+    margin-top: 0.75rem;
+    word-break: break-all;
+  }
+
+  .section-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+  }
+
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .mode-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.9rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    line-height: 1.5;
+  }
+
+  .mode-btn .mode-name {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text);
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .mode-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .mode-btn.active {
+    border-color: var(--accent);
+    background: rgba(200,255,0,0.06);
+    color: var(--text);
+  }
+
+  .mode-btn.active .mode-name {
+    color: var(--accent);
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .slider-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-width: 70px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    appearance: none;
+    height: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    cursor: pointer;
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  }
+
+  .slider-val {
+    font-size: 0.7rem;
+    color: var(--accent);
+    min-width: 35px;
+    text-align: right;
+  }
+
+  .process-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 0.1em;
+    padding: 1rem;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .process-btn:hover:not(:disabled) {
+    background: #d9ff1a;
+  }
+
+  .process-btn:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+
+  .process-btn:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  .status {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 1rem;
+    min-height: 1rem;
+    transition: color 0.2s;
+  }
+
+  .status.active { color: var(--accent); }
+  .status.done { color: var(--accent2); }
+
+  .visualizer-wrap {
+    margin-top: 1.5rem;
+    height: 60px;
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+    letter-spacing: 0.1em;
+  }
+
+  .download-link {
+    display: none;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.9rem;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 0.75rem;
+    transition: background 0.15s;
+  }
+
+  .download-link:hover {
+    background: rgba(255,77,0,0.1);
+  }
+
+  .download-link.visible { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>TRS<br>SIDE<br>PULL</h1>
+    <p class="subtitle">Channel subtraction · Stereo isolation · Center cancel</p>
+  </header>
+
+  <div class="card">
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="audio/mp3,audio/mpeg,audio/*">
+      <span class="drop-icon">◈</span>
+      <div class="drop-text">
+        <strong>Drop MP3 here</strong>
+        or click to browse
+      </div>
+      <div class="file-name" id="fileName"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Processing Mode</div>
+    <div class="mode-grid">
+      <button class="mode-btn active" data-mode="side" onclick="setMode(this)">
+        <span class="mode-name">Side (L−R)</span>
+        Removes center mono content. Reveals panned/ambient sounds. The TRS pull effect.
+      </button>
+      <button class="mode-btn" data-mode="mid" onclick="setMode(this)">
+        <span class="mode-name">Mid (L+R)</span>
+        Keeps center mono content only. Isolates vocals, bass, kick.
+      </button>
+      <button class="mode-btn" data-mode="left-only" onclick="setMode(this)">
+        <span class="mode-name">Left Only</span>
+        Hard short to ground on right. Raw single-channel listen.
+      </button>
+      <button class="mode-btn" data-mode="right-only" onclick="setMode(this)">
+        <span class="mode-name">Right Only</span>
+        Hard short to ground on left. Raw single-channel listen.
+      </button>
+    </div>
+
+    <div class="slider-row">
+      <span class="slider-label">Intensity</span>
+      <input type="range" id="intensitySlider" min="0" max="100" value="100">
+      <span class="slider-val" id="intensityVal">100%</span>
+    </div>
+
+    <div class="slider-row">
+      <span class="slider-label">Output Vol</span>
+      <input type="range" id="gainSlider" min="0" max="400" value="200">
+      <span class="slider-val" id="gainVal">2.0x</span>
+    </div>
+
+    <div class="visualizer-wrap">
+      <canvas id="waveCanvas"></canvas>
+    </div>
+    <div class="info-row">
+      <span id="durationInfo">—</span>
+      <span id="modeInfo">MODE: SIDE (L−R)</span>
+    </div>
+  </div>
+
+  <button class="process-btn" id="processBtn" disabled onclick="processAudio()">
+    ◆ PROCESS &amp; EXPORT
+  </button>
+  <a class="download-link" id="downloadLink">↓ Download Processed File</a>
+  <div class="status" id="status">Load an MP3 to begin</div>
+</div>
+
+<script>
+let audioBuffer = null;
+let currentMode = 'side';
+let originalFileName = 'audio';
+
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+const fileName = document.getElementById('fileName');
+const processBtn = document.getElementById('processBtn');
+const downloadLink = document.getElementById('downloadLink');
+const status = document.getElementById('status');
+const canvas = document.getElementById('waveCanvas');
+const ctx2d = canvas.getContext('2d');
+
+const intensitySlider = document.getElementById('intensitySlider');
+const gainSlider = document.getElementById('gainSlider');
+const intensityVal = document.getElementById('intensityVal');
+const gainVal = document.getElementById('gainVal');
+
+intensitySlider.oninput = () => { intensityVal.textContent = intensitySlider.value + '%'; };
+gainSlider.oninput = () => { gainVal.textContent = (gainSlider.value / 100).toFixed(1) + 'x'; };
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) loadFile(fileInput.files[0]);
+});
+
+function setMode(btn) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMode = btn.dataset.mode;
+  document.getElementById('modeInfo').textContent = 'MODE: ' + btn.querySelector('.mode-name').textContent.toUpperCase();
+  downloadLink.classList.remove('visible');
+}
+
+async function loadFile(file) {
+  originalFileName = file.name.replace(/\.[^.]+$/, '');
+  fileName.textContent = file.name;
+  setStatus('Decoding audio...', 'active');
+
+  const arrayBuffer = await file.arrayBuffer();
+  const audioCtx = new AudioContext();
+  
+  try {
+    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    const dur = audioBuffer.duration;
+    document.getElementById('durationInfo').textContent = 
+      `${Math.floor(dur/60)}:${String(Math.floor(dur%60)).padStart(2,'0')} · ${audioBuffer.sampleRate}Hz · ${audioBuffer.numberOfChannels}ch`;
+    
+    drawWaveform(audioBuffer);
+    processBtn.disabled = false;
+    downloadLink.classList.remove('visible');
+    setStatus('Ready — select mode and process', '');
+  } catch(e) {
+    setStatus('Error decoding file. Try another MP3.', 'done');
+  }
+  audioCtx.close();
+}
+
+function drawWaveform(buffer) {
+  const w = canvas.offsetWidth * devicePixelRatio;
+  const h = canvas.offsetHeight * devicePixelRatio;
+  canvas.width = w; canvas.height = h;
+
+  const data = buffer.getChannelData(0);
+  const step = Math.ceil(data.length / (w / 2));
+  
+  ctx2d.clearRect(0, 0, w, h);
+  ctx2d.strokeStyle = '#c8ff00';
+  ctx2d.lineWidth = 1;
+  ctx2d.beginPath();
+
+  for (let i = 0; i < w; i++) {
+    const idx = Math.floor(i * step);
+    const val = data[Math.min(idx, data.length - 1)];
+    const y = (1 - val) / 2 * h;
+    i === 0 ? ctx2d.moveTo(i, y) : ctx2d.lineTo(i, y);
+  }
+  ctx2d.stroke();
+}
+
+async function processAudio() {
+  if (!audioBuffer) return;
+
+  setStatus('Processing...', 'active');
+  processBtn.disabled = true;
+
+  await new Promise(r => setTimeout(r, 30));
+
+  const nCh = audioBuffer.numberOfChannels;
+  const len = audioBuffer.length;
+  const sr = audioBuffer.sampleRate;
+  const intensity = intensitySlider.value / 100;
+  const gain = gainSlider.value / 100;
+
+  // Get channel data (handle mono files)
+  const L = audioBuffer.getChannelData(0);
+  const R = nCh > 1 ? audioBuffer.getChannelData(1) : audioBuffer.getChannelData(0);
+
+  const offlineCtx = new OfflineAudioContext(2, len, sr);
+  const outBuffer = offlineCtx.createBuffer(2, len, sr);
+  const outL = outBuffer.getChannelData(0);
+  const outR = outBuffer.getChannelData(1);
+
+  for (let i = 0; i < len; i++) {
+    let l, r;
+    switch (currentMode) {
+      case 'side':
+        // L - R (removes mono center, keeps stereo sides)
+        const side = (L[i] - R[i]) * 0.5;
+        l = L[i] * (1 - intensity) + side * intensity;
+        r = R[i] * (1 - intensity) - side * intensity;
+        // Output side on both channels
+        l = side * intensity + L[i] * (1 - intensity);
+        r = -side * intensity + R[i] * (1 - intensity);
+        // Simpler: output side signal to both
+        l = side;
+        r = side;
+        break;
+      case 'mid':
+        // L + R (mono center content)
+        const mid = (L[i] + R[i]) * 0.5;
+        l = mid;
+        r = mid;
+        break;
+      case 'left-only':
+        l = L[i];
+        r = L[i];
+        break;
+      case 'right-only':
+        l = R[i];
+        r = R[i];
+        break;
+    }
+    outL[i] = l * gain;
+    outR[i] = r * gain;
+  }
+
+  // Encode to WAV
+  const wavBlob = encodeWAV(outBuffer);
+  const url = URL.createObjectURL(wavBlob);
+  downloadLink.href = url;
+  downloadLink.download = `${originalFileName}_${currentMode}.wav`;
+  downloadLink.classList.add('visible');
+
+  processBtn.disabled = false;
+  setStatus('Done! Click below to download.', 'done');
+  drawWaveform(outBuffer);
+}
+
+function encodeWAV(buffer) {
+  const numCh = 2;
+  const sr = buffer.sampleRate;
+  const len = buffer.length;
+  const bitsPerSample = 16;
+  const byteRate = sr * numCh * bitsPerSample / 8;
+  const blockAlign = numCh * bitsPerSample / 8;
+  const dataSize = len * numCh * 2;
+  const ab = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(ab);
+
+  function writeStr(offset, str) {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  }
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numCh, true);
+  view.setUint32(24, sr, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeStr(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  const L = buffer.getChannelData(0);
+  const R = buffer.getChannelData(1);
+  let offset = 44;
+  for (let i = 0; i < len; i++) {
+    const l = Math.max(-1, Math.min(1, L[i]));
+    const r = Math.max(-1, Math.min(1, R[i]));
+    view.setInt16(offset, l * 0x7FFF, true); offset += 2;
+    view.setInt16(offset, r * 0x7FFF, true); offset += 2;
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+function setStatus(msg, cls) {
+  status.textContent = msg;
+  status.className = 'status ' + cls;
+}
+</script>
+</body>
+</html>
